@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.title}}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logout-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .admin-badge {
+            background-color: #e74c3c;
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .tabs {
+            display: flex;
+            background-color: white;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .tab {
+            padding: 1rem 2rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .tab:first-child {
+            border-top-left-radius: 8px;
+            border-bottom-left-radius: 8px;
+        }
+        .tab:last-child {
+            border-top-right-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+        .tab.active {
+            border-bottom-color: #3498db;
+            background-color: #ecf0f1;
+        }
+        .tab:hover {
+            background-color: #f8f9fa;
+        }
+        .tab-content {
+            display: none;
+            background-color: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .logs-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .user-group {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            background-color: #fafafa;
+        }
+        .user-header {
+            background-color: #f0f0f0;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #e0e0e0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .user-header:hover {
+            background-color: #e8e8e8;
+        }
+        .collapse-arrow {
+            font-size: 0.8rem;
+            transition: transform 0.2s;
+        }
+        .collapse-arrow.expanded {
+            transform: rotate(180deg);
+        }
+        .user-content {
+            display: none;
+        }
+        .user-content.expanded {
+            display: block;
+        }
+        .session-group {
+            border-left: 3px solid #3498db;
+            margin: 0.5rem;
+            background-color: white;
+            border-radius: 4px;
+        }
+        .session-header {
+            background-color: #f8f9fa;
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid #e0e0e0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+            color: #34495e;
+            font-size: 0.9rem;
+        }
+        .session-header:hover {
+            background-color: #ecf0f1;
+        }
+        .session-content {
+            display: none;
+        }
+        .session-content.expanded {
+            display: block;
+        }
+        .log-entry {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #f0f0f0;
+            font-family: 'Courier New', monospace;
+        }
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        .log-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+            color: #666;
+        }
+        .log-command {
+            background-color: #f8f9fa;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 0.9rem;
+        }
+        .env-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        .env-card {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        .env-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .env-title {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .status-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .status-pending { background-color: #f39c12; color: white; }
+        .status-creating { background-color: #3498db; color: white; }
+        .status-available { background-color: #27ae60; color: white; }
+        .status-shutdown { background-color: #e74c3c; color: white; }
+        .env-details {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .env-details div {
+            margin-bottom: 0.5rem;
+        }
+        .refresh-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 1rem;
+        }
+        .refresh-btn:hover {
+            background-color: #2980b9;
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔧 管理者ダッシュボード</h1>
+        <div class="user-info">
+            <span class="admin-badge">ADMIN</span>
+            <span>{{.DisplayName}}</span>
+            <a href="/logout" class="logout-btn">ログアウト</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('logs')">コマンドログ</div>
+            <div class="tab" onclick="showTab('environments')">全環境</div>
+        </div>
+
+        <div id="logs-tab" class="tab-content active">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2>ユーザーコマンドログ</h2>
+                <button class="refresh-btn" onclick="loadCommandLogs()">更新</button>
+            </div>
+            <div id="logs-container" class="logs-container">
+                <div class="loading">ログを読み込み中...</div>
+            </div>
+        </div>
+
+        <div id="environments-tab" class="tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2>全ユーザー環境</h2>
+                <button class="refresh-btn" onclick="loadAllEnvironments()">更新</button>
+            </div>
+            <div id="environments-container" class="env-grid">
+                <div class="loading">環境情報を読み込み中...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // タブの表示切り替え
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // データ読み込み
+            if (tabName === 'logs') {
+                loadCommandLogs();
+            } else if (tabName === 'environments') {
+                loadAllEnvironments();
+            }
+        }
+
+        function loadCommandLogs() {
+            const container = document.getElementById('logs-container');
+            container.innerHTML = '<div class="loading">ログを読み込み中...</div>';
+            
+            fetch('/admin/api/command-logs')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.logs && data.logs.length > 0) {
+                        const groupedLogs = groupLogsByUserAndSession(data.logs);
+                        container.innerHTML = renderGroupedLogs(groupedLogs);
+                    } else {
+                        container.innerHTML = '<div class="loading">コマンドログがありません</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading logs:', error);
+                    container.innerHTML = '<div class="loading">ログの読み込みに失敗しました</div>';
+                });
+        }
+        
+        function groupLogsByUserAndSession(logs) {
+            const grouped = {};
+            
+            logs.forEach(log => {
+                const userId = log.user_id || 'unknown';
+                const sessionId = log.session_id || 'default';
+                
+                if (!grouped[userId]) {
+                    grouped[userId] = {
+                        userId: userId,
+                        userName: log.user_name || userId,
+                        sessions: {}
+                    };
+                }
+                
+                if (!grouped[userId].sessions[sessionId]) {
+                    grouped[userId].sessions[sessionId] = {
+                        sessionId: sessionId,
+                        logs: []
+                    };
+                }
+                
+                grouped[userId].sessions[sessionId].logs.push(log);
+            });
+            
+            return grouped;
+        }
+        
+        function renderGroupedLogs(groupedLogs) {
+            let html = '';
+            
+            Object.keys(groupedLogs).forEach(userId => {
+                const userGroup = groupedLogs[userId];
+                const sessionCount = Object.keys(userGroup.sessions).length;
+                const totalLogs = Object.values(userGroup.sessions).reduce((sum, session) => sum + session.logs.length, 0);
+                
+                html += `
+                    <div class="user-group">
+                        <div class="user-header" onclick="toggleUserGroup('${userId}')">
+                            <span>👤 ${userGroup.userName} (${sessionCount}セッション, ${totalLogs}コマンド)</span>
+                            <span class="collapse-arrow">▼</span>
+                        </div>
+                        <div class="user-content" id="user-${userId}">
+                `;
+                
+                Object.keys(userGroup.sessions).forEach(sessionId => {
+                    const session = userGroup.sessions[sessionId];
+                    const sessionLogs = session.logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    const latestLog = sessionLogs[0];
+                    
+                    html += `
+                        <div class="session-group">
+                            <div class="session-header" onclick="toggleSessionGroup('${userId}', '${sessionId}')" title="セッションID: ${sessionId}">
+                                <span>📱 セッション: ${sessionId} (${session.logs.length}コマンド)</span>
+                                <div>
+                                    <span style="font-size: 0.8rem; color: #666; margin-right: 10px;">
+                                        最新: ${new Date(latestLog.timestamp).toLocaleString('ja-JP')}
+                                    </span>
+                                    <span class="collapse-arrow">▼</span>
+                                </div>
+                            </div>
+                            <div class="session-content" id="session-${userId}-${sessionId}">
+                    `;
+                    
+                    sessionLogs.forEach(log => {
+                        html += `
+                            <div class="log-entry">
+                                <div class="log-meta">
+                                    <span>🐳 ${log.display_name || log.environment_id.substring(0, 8)} | 📍 ${log.pod_name}</span>
+                                    <span>${new Date(log.timestamp).toLocaleString('ja-JP')}</span>
+                                </div>
+                                <div class="log-command">${escapeHtml(log.command)}</div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            });
+            
+            return html;
+        }
+        
+        function toggleUserGroup(userId) {
+            const content = document.getElementById(`user-${userId}`);
+            const arrow = event.target.querySelector('.collapse-arrow');
+            
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                arrow.classList.remove('expanded');
+            } else {
+                content.classList.add('expanded');
+                arrow.classList.add('expanded');
+            }
+        }
+        
+        function toggleSessionGroup(userId, sessionId) {
+            const content = document.getElementById(`session-${userId}-${sessionId}`);
+            const arrow = event.target.querySelector('.collapse-arrow');
+            
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                arrow.classList.remove('expanded');
+            } else {
+                content.classList.add('expanded');
+                arrow.classList.add('expanded');
+            }
+        }
+
+        function loadAllEnvironments() {
+            const container = document.getElementById('environments-container');
+            container.innerHTML = '<div class="loading">環境情報を読み込み中...</div>';
+            
+            fetch('/admin/api/all-environments')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.environments && data.environments.length > 0) {
+                        container.innerHTML = data.environments.map(env => `
+                            <div class="env-card">
+                                <div class="env-header">
+                                    <div class="env-title">${env.display_name || env.id.substring(0, 8)}</div>
+                                    <div class="status-badge status-${env.status}">${env.status.toUpperCase()}</div>
+                                </div>
+                                <div class="env-details">
+                                    <div><strong>所有者:</strong> ${env.owner}</div>
+                                    <div><strong>K8sバージョン:</strong> ${env.k8s_version}</div>
+                                    <div><strong>作成日時:</strong> ${new Date(env.status_updated_at).toLocaleString('ja-JP')}</div>
+                                    <div><strong>有効期限:</strong> ${new Date(env.expires_at).toLocaleString('ja-JP')}</div>
+                                    ${env.pod_id ? `<div><strong>Pod ID:</strong> ${env.pod_id}</div>` : ''}
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        container.innerHTML = '<div class="loading">環境がありません</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading environments:', error);
+                    container.innerHTML = '<div class="loading">環境情報の読み込みに失敗しました</div>';
+                });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ページ読み込み時にコマンドログを表示
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCommandLogs();
+        });
+
+        // リアルタイム更新は不要のためコメントアウト
+        // setInterval(function() {
+        //     const activeTab = document.querySelector('.tab-content.active');
+        //     if (activeTab.id === 'logs-tab') {
+        //         loadCommandLogs();
+        //     } else if (activeTab.id === 'environments-tab') {
+        //         loadAllEnvironments();
+        //     }
+        // }, 5000);
+    </script>
+</body>
+</html>
