@@ -1,0 +1,131 @@
+name: Release and Update Chart
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Get version from tag
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Build and push controller images
+        run: |
+          VERSION=${{ steps.get_version.outputs.version }}
+          echo "Building and pushing images for version: ${VERSION}"
+          
+          # Build all controller images with version tag
+          for controller in app collector generator killer logging; do
+            echo "📦 Building ${controller}-controller:${VERSION}..."
+            docker build -f docker/${controller}-controller/Dockerfile \
+              -t tyottodekiru/${controller}-controller:${VERSION} \
+              -t tyottodekiru/${controller}-controller:latest .
+            
+            echo "🚀 Pushing ${controller}-controller:${VERSION}..."
+            docker push tyottodekiru/${controller}-controller:${VERSION}
+            docker push tyottodekiru/${controller}-controller:latest
+            
+            echo "✅ Completed ${controller}-controller"
+          done
+          
+          echo "🎉 All images pushed successfully!"
+
+  update-helm-chart:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout chart repository
+        uses: actions/checkout@v4
+        with:
+          repository: tyottodekiru/k8s-playground-chart
+          token: ${{ secrets.CHART_REPO_TOKEN }}
+          path: chart-repo
+          
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+      
+      - name: Update Chart version
+        run: |
+          cd chart-repo
+          VERSION=${{ needs.build-and-push.outputs.version }}
+          CHART_VERSION=$(echo $VERSION | sed 's/^v//')  # Remove 'v' prefix for chart version
+          
+          echo "📋 Updating chart for version: ${VERSION}"
+          echo "Chart version will be: ${CHART_VERSION}"
+          
+          # Create new chart version directory structure for multiple version support
+          CHART_DIR="charts/k8s-playground-${CHART_VERSION}"
+          BASE_CHART_DIR="charts/k8s-playground"
+          
+          # Check if versioned chart directory exists, if not copy from base
+          if [ ! -d "$CHART_DIR" ]; then
+            echo "🆕 Creating new chart version directory: ${CHART_DIR}"
+            cp -r "$BASE_CHART_DIR" "$CHART_DIR"
+          fi
+          
+          # Update Chart.yaml with matching version and appVersion
+          yq -i ".version = \"$CHART_VERSION\"" "${CHART_DIR}/Chart.yaml"
+          yq -i ".appVersion = \"$VERSION\"" "${CHART_DIR}/Chart.yaml"
+          yq -i ".name = \"k8s-playground-${CHART_VERSION}\"" "${CHART_DIR}/Chart.yaml"
+          
+          # Update values.yaml - update image tag
+          yq -i ".controlPlane.controllers.defaults.image.tag = \"$VERSION\"" "${CHART_DIR}/values.yaml"
+          
+          # Also update the base chart for backward compatibility
+          yq -i ".version = \"$CHART_VERSION\"" "${BASE_CHART_DIR}/Chart.yaml"
+          yq -i ".appVersion = \"$VERSION\"" "${BASE_CHART_DIR}/Chart.yaml"
+          yq -i ".controlPlane.controllers.defaults.image.tag = \"$VERSION\"" "${BASE_CHART_DIR}/values.yaml"
+          
+          echo "✅ Chart files updated successfully"
+          echo "📋 Updated directories:"
+          echo "  - ${CHART_DIR}"
+          echo "  - ${BASE_CHART_DIR}"
+          
+          # Show changes
+          echo "📝 Changes made:"
+          git status --porcelain
+          
+      - name: Commit and push changes
+        run: |
+          cd chart-repo
+          VERSION=${{ needs.build-and-push.outputs.version }}
+          
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          git add charts/
+          
+          if git diff --staged --quiet; then
+            echo "ℹ️  No changes to commit"
+          else
+            CHART_VERSION=$(echo $VERSION | sed 's/^v//')
+            git commit -m "$(cat <<EOF
+          chore: release chart version ${CHART_VERSION}
+          
+          - Create/update chart version ${CHART_VERSION}
+          - Set appVersion to ${VERSION}
+          - Set chart version to ${CHART_VERSION} (matching app version)
+          - Update default image tag to ${VERSION}
+          
+          🤖 Generated by GitHub Actions
+          EOF
+          )"
+            git push
+            echo "🚀 Chart updated and pushed successfully!"
+          fi
