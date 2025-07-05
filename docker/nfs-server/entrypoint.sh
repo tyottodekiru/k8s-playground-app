@@ -6,13 +6,7 @@ LOCKD_PORT=32768
 MOUNTD_PORT=32767
 STATD_PORT=32765
 
-# 1. lockd (NLM) のためのカーネルパラメータを設定
-echo "[NFS Entrypoint] Configuring lockd kernel module ports..."
-echo $LOCKD_PORT > /proc/sys/fs/nfs/nlm_tcpport
-echo $LOCKD_PORT > /proc/sys/fs/nfs/nlm_udpport
-echo "[NFS Entrypoint] lockd ports set to $LOCKD_PORT"
-
-# 2. /etc/exports を設定
+# 1. /etc/exports を設定
 SHARED_DIR=${SHARED_DIRECTORY:-/exports}
 mkdir -p "$SHARED_DIR"
 chmod 777 "$SHARED_DIR"
@@ -23,7 +17,7 @@ echo "--- /etc/exports ---"
 cat /etc/exports
 echo "--------------------"
 
-# 3. 各種サービスを開始
+# 2. 各種サービスを開始
 echo "Starting rpcbind..."
 /usr/sbin/rpcbind -w
 
@@ -36,7 +30,7 @@ echo "Starting NFS kernel daemon..."
 echo "Starting rpc.mountd on port $MOUNTD_PORT..."
 /usr/sbin/rpc.mountd --port $MOUNTD_PORT
 
-# 4. 設定をエクスポート
+# 3. 設定をエクスポート
 echo "Exporting file systems..."
 /usr/sbin/exportfs -ra
 
