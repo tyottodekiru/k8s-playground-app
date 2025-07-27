@@ -38,6 +38,10 @@ else
   echo "[INFO] kind cluster 'dev-cluster' already exists. Skipping creation."
 fi
 
+# kubectl context のデフォルト namespace を default に設定
+echo "[INFO] Setting default namespace to 'default'..."
+kubectl config set-context --current --namespace=default
+
 # コンテナを起動状態で維持（kubectl exec で接続するため）
 echo "[INFO] Setup completed. Container will keep running for kubectl exec access."
 exec sleep infinity
