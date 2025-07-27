@@ -849,7 +849,7 @@ func (a *AppController) handleTerminalSession(conn *websocket.Conn, item *queue.
 	a.sendRawMessage(conn, fmt.Sprintf("\x1b[32mWelcome! Connecting to your Kubernetes environment '%s' (Pod: %s)...\x1b[0m\r\n", displayName, podName))
 
 	containerName := "dind"
-	command := []string{"/bin/bash"}
+	command := []string{"/bin/bash", "-c", "cd /root && exec /bin/bash"}
 	execCtx, cancelExec := context.WithCancel(context.Background())
 	defer cancelExec()
 

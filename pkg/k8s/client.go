@@ -204,7 +204,7 @@ func (c *Client) CreateDinDStatefulSet(ctx context.Context, name, namespace, din
 								{Name: "tmp", MountPath: "/tmp"},
 								{
 									Name:      "nfs-user-share",
-									MountPath: "/mnt/share",
+									MountPath: "/root/share",
 									SubPath:   nfsSubPath,
 								},
 							},
@@ -302,7 +302,7 @@ func (c *Client) CreateDinDDeployment(ctx context.Context, name, namespace, dind
 							{Name: "tmp", MountPath: "/tmp"},
 							{
 								Name:      "nfs-user-share",
-								MountPath: "/mnt/share",
+								MountPath: "/root/share",
 								SubPath:   nfsSubPath,
 							},
 						},
