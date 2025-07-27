@@ -18,7 +18,10 @@ RUN apt-get update && apt-get install -y \
     dnsutils \
     iproute2 \
     vim \
-    tmux
+    tmux \
+    iputils-ping \
+    wget \
+    unzip
 
 # Dockerの公式GPGキーを追加
 RUN install -m 0755 -d /etc/apt/keyrings && \
@@ -51,6 +54,13 @@ RUN KUBECTL_VERSION="$(curl -Ls https://dl.k8s.io/release/stable.txt)" && \
 # kindのインストール（ビルド済みバイナリ）
 RUN curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64 && \
     chmod +x ./kind && mv ./kind /usr/local/bin/kind
+
+# grpcurlのインストール
+RUN GRPCURL_VERSION="1.9.1" && \
+    curl -Lo grpcurl.tar.gz "https://github.com/fullstorydev/grpcurl/releases/download/v${GRPCURL_VERSION}/grpcurl_${GRPCURL_VERSION}_linux_x86_64.tar.gz" && \
+    tar -xzf grpcurl.tar.gz && \
+    mv grpcurl /usr/local/bin/ && \
+    rm grpcurl.tar.gz
 
 # kind用のクラスタ設定テンプレートを追加（必要に応じて上書き可能）
 COPY docker-entrypoint.sh /usr/local/bin/
