@@ -21,6 +21,12 @@ const mainPanel = document.getElementById('mainPanel');
 document.addEventListener('DOMContentLoaded', async function() {
     loadEnvironments(); // 認証後にバージョンも読み込まれるように修正（commit b4b4350 fix maintained）
     setInterval(loadEnvironments, 5000);
+    
+    // サイドバーのクリックイベントリスナーを追加
+    if (sidebar) {
+        sidebar.addEventListener('click', handleSidebarClick);
+    }
+    
     window.addEventListener('beforeunload', () => {
         activeSessions.forEach((session, envId) => {
             disconnectTerminal(envId, false);
@@ -241,7 +247,6 @@ function renderUIBasedOnState() {
         
         if (currentEnvId && (activeSessions.has(currentEnvId) && hasTerminalPanel || hasBrowserPanel || hasSplitView)) {
             appLayout.classList.add('terminal-active');
-            appLayout.classList.add('sidebar-collapsed');
         } else {
             appLayout.classList.remove('terminal-active');
             appLayout.classList.remove('sidebar-collapsed');
@@ -553,7 +558,6 @@ async function showTerminalForEnv(id) {
     if (appLayout) {
         appLayout.classList.remove('no-environments');
         appLayout.classList.add('terminal-active');
-        appLayout.classList.add('sidebar-collapsed'); 
     }
     renderSidebarContent(); 
 }
@@ -606,7 +610,6 @@ async function connectEnvironment(id) {
     if (appLayout) {
         appLayout.classList.remove('no-environments');
         appLayout.classList.add('terminal-active');
-        appLayout.classList.add('sidebar-collapsed'); 
     }
     
     showTerminalPanelDOM(id, session.term); 
@@ -629,7 +632,6 @@ async function connectEnvironment(id) {
             session.socket.close();
             session.socket = null;
         }
-        appLayout.classList.remove('sidebar-collapsed'); 
         renderSidebarContent(); 
     }
 }
@@ -830,7 +832,6 @@ function disconnectTerminal(envId, isUIRefreshNeeded = true) {
                 terminalPanel.remove();
             }
             appLayout.classList.remove('terminal-active');
-            appLayout.classList.remove('sidebar-collapsed'); 
             renderUIBasedOnState(); 
         } else {
             renderSidebarContent(); 
@@ -867,7 +868,6 @@ document.addEventListener('keydown', function(event) {
             mainPanel.innerHTML = '<div style="text-align:center; color: #777; margin-top: 50px; padding:2rem;">Select an environment to connect or create a new one.</div>';
         }
         appLayout.classList.remove('terminal-active');
-        appLayout.classList.remove('sidebar-collapsed'); 
         
         const previouslyActiveId = currentEnvId;
         currentEnvId = null;
@@ -1457,7 +1457,6 @@ function closeSplitView() {
     isBrowserVisible = false;
     mainPanel.innerHTML = '<div style="text-align:center; color: #777; margin-top: 50px; padding:2rem;">Select an environment to connect or create a new one.</div>';
     appLayout.classList.remove('terminal-active');
-    appLayout.classList.remove('sidebar-collapsed');
     
     currentEnvId = null;
     renderSidebarContent();
@@ -1651,11 +1650,41 @@ async function refreshServices(envId) {
     populateServicesList(browserServices);
 }
 
+// サイドバーの手動トグル機能
+function toggleSidebar() {
+    console.log('🔄 Toggle sidebar');
+    appLayout.classList.toggle('sidebar-collapsed');
+    const isCollapsed = appLayout.classList.contains('sidebar-collapsed');
+    console.log('📏 Sidebar is now:', isCollapsed ? 'collapsed' : 'expanded');
+}
+
+// サイドバーがクリックされた時の処理
+function handleSidebarClick(event) {
+    const isCollapsed = appLayout.classList.contains('sidebar-collapsed');
+    console.log('👆 Sidebar clicked | Collapsed:', isCollapsed);
+    
+    // 最小化状態でのみクリックで展開
+    if (isCollapsed) {
+        // ボタンをクリックした場合は何もしない（ボタンの処理に任せる）
+        if (event.target.closest('.sidebar-toggle')) {
+            console.log('🚫 Toggle button clicked, ignoring');
+            return;
+        }
+        // サイドバー内の他の要素（フォームなど）をクリックした場合は何もしない
+        if (event.target.closest('.actions, .environments, input, button, select')) {
+            console.log('🚫 Interactive element clicked, ignoring');
+            return;
+        }
+        // サイドバーの空いている部分をクリックした場合のみ展開
+        console.log('✅ Expanding sidebar via click');
+        toggleSidebar();
+    }
+}
+
 // Close browser panel
 function closeBrowserPanel() {
     mainPanel.innerHTML = '<div style="text-align:center; color: #777; margin-top: 50px; padding:2rem;">Select an environment to connect or create a new one.</div>';
     appLayout.classList.remove('terminal-active');
-    appLayout.classList.remove('sidebar-collapsed');
     
     currentEnvId = null;
     currentBrowserTab = 'terminal';

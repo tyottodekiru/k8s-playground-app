@@ -15,7 +15,8 @@
             background: #f5f7fa;
             color: #333;
             height: 100vh;
-            overflow: hidden;
+            overflow-y: hidden;
+            overflow-x: visible;
         }
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -73,12 +74,15 @@
         .logout-btn:hover {
             background: rgba(255,255,255,0.3);
         }
-        .app-layout { display: flex; height: 100vh; padding-top: 60px; }
-        .sidebar { width: 450px; min-width: 80px; background: #ffffff; padding: 2rem; overflow-y: auto; overflow-x: hidden; transition: width 0.3s ease, min-width 0.3s ease, padding 0.3s ease; border-right: 1px solid #e1e5e9; display: flex; flex-direction: column; flex-shrink: 0; position: relative; z-index: 10; }
+        .app-layout { display: flex; height: 100vh; padding-top: 60px; overflow: visible; }
+        .sidebar { width: 450px; min-width: 80px; background: #ffffff; padding: 2rem; overflow-y: auto; overflow-x: visible; transition: width 0.3s ease, min-width 0.3s ease, padding 0.3s ease; border-right: 1px solid #e1e5e9; display: flex; flex-direction: column; flex-shrink: 0; position: relative; z-index: 10; }
+        .sidebar-toggle { position: absolute; top: 15px; right: 15px; width: 28px; height: 28px; background: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; z-index: 100; transition: all 0.2s ease; }
+        .sidebar-toggle:hover { background: #e9ecef; color: #495057; border-color: #adb5bd; }
+        .app-layout.sidebar-collapsed .sidebar-toggle { top: 15px; right: 24px; }
         .app-layout.sidebar-collapsed .sidebar { width: 80px; padding: 1rem 0; }
+        .app-layout.sidebar-collapsed .sidebar-toggle span { transform: rotate(180deg); }
+        .sidebar-toggle span { font-size: 12px; font-weight: normal; transition: transform 0.3s ease; line-height: 1; }
         .app-layout.sidebar-collapsed .sidebar > *:not(.sidebar-title-collapsed) { opacity: 0; pointer-events: none; height: 0; overflow: hidden; transition: opacity 0.1s ease 0s, height 0s ease 0.1s; }
-        .app-layout.sidebar-collapsed .sidebar:hover { width: 450px; min-width: 450px; padding: 2rem; box-shadow: 0 0 15px rgba(0,0,0,0.1); z-index: 100; }
-        .app-layout.sidebar-collapsed .sidebar:hover > *:not(.sidebar-title-collapsed) { opacity: 1; pointer-events: auto; height: auto; transition: opacity 0.2s ease 0.1s, height 0s ease 0s; }
         .sidebar-title-collapsed { padding: 1rem 0; cursor: default; display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; height: 40px; }
         .app-layout.sidebar-collapsed .sidebar .sidebar-title-collapsed { display: flex; opacity: 1; pointer-events: auto; }
         .sidebar-title-collapsed svg { width: 24px; height: 24px; fill: #333; }
@@ -219,6 +223,9 @@
 
     <div class="app-layout" id="appLayout">
         <div class="sidebar" id="sidebar">
+            <button class="sidebar-toggle" onclick="toggleSidebar()" title="サイドバーを最小化/展開">
+                <span>◀</span>
+            </button>
             <div class="sidebar-title-collapsed">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
