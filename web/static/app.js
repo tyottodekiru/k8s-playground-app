@@ -165,6 +165,11 @@ function populateK8sVersionDropdowns(versions) {
             console.log('Select element not found');
             return;
         }
+        
+        // 現在選択されている値を保存
+        const currentValue = selectElement.value;
+        console.log('Current selected value:', currentValue);
+        
         selectElement.innerHTML = ''; // 既存のオプションをクリア
 
         if (!versions || versions.length === 0) {
@@ -184,6 +189,12 @@ function populateK8sVersionDropdowns(versions) {
                 selectElement.appendChild(option);
             });
             selectElement.disabled = false;
+            
+            // 以前の選択値を復元（存在する場合）
+            if (currentValue && versions.includes(currentValue)) {
+                selectElement.value = currentValue;
+                console.log('Restored previous selection:', currentValue);
+            }
         }
     }
 
@@ -273,30 +284,62 @@ function renderNoEnvironmentsView() {
     appLayout.classList.add('no-environments');
     appLayout.classList.remove('sidebar-collapsed', 'terminal-active');
 
-    mainPanel.innerHTML = `
-        <div class="no-env-container">
-            <div class="actions">
-                <h2>Create New Environment</h2>
-                <div class="form-row">
-                    <div class="form-group full-width">
-                        <label for="env-name-main">Environment Name (Optional)</label>
-                        <input type="text" id="env-name-main" placeholder="e.g., My Test Cluster">
+    // no-env-containerが既に存在する場合は、入力値を保持する
+    const existingContainer = mainPanel.querySelector('.no-env-container');
+    let preservedEnvName = '';
+    let preservedK8sVersion = '';
+    
+    if (existingContainer) {
+        const envNameInput = existingContainer.querySelector('#env-name-main');
+        const k8sVersionSelect = existingContainer.querySelector('#k8s-version-main');
+        
+        if (envNameInput) preservedEnvName = envNameInput.value;
+        if (k8sVersionSelect) preservedK8sVersion = k8sVersionSelect.value;
+    }
+
+    // 既存のno-env-containerがある場合は何もせず、ない場合のみ新規作成
+    if (!existingContainer) {
+        mainPanel.innerHTML = `
+            <div class="no-env-container">
+                <div class="actions">
+                    <h2>Create New Environment</h2>
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label for="env-name-main">Environment Name (Optional)</label>
+                            <input type="text" id="env-name-main" placeholder="e.g., My Test Cluster" value="${preservedEnvName}">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="k8s-version-main">Kubernetes Version</label>
+                            <select id="k8s-version-main">
+                                 <option value="">Loading versions...</option>
+                            </select>
+                        </div>
+                        <button class="btn" onclick="createEnvironmentFromMainPanel()">Create</button>
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="k8s-version-main">Kubernetes Version</label>
-                        <select id="k8s-version-main">
-                             <option value="">Loading versions...</option>
-                        </select>
-                    </div>
-                    <button class="btn" onclick="createEnvironmentFromMainPanel()">Create</button>
-                </div>
+                <div class="empty-message">No environments yet. Create your first one using the form above!</div>
             </div>
-            <div class="empty-message">No environments yet. Create your first one using the form above!</div>
-        </div>
-    `;
-    populateK8sVersionDropdowns(availableK8sVersions); // ★ no-envビューのドロップダウンも更新
+        `;
+        populateK8sVersionDropdowns(availableK8sVersions); // ★ no-envビューのドロップダウンも更新
+        
+        // 保存された値を復元
+        if (preservedEnvName || preservedK8sVersion) {
+            const envNameInput = document.getElementById('env-name-main');
+            const k8sVersionSelect = document.getElementById('k8s-version-main');
+            
+            if (envNameInput && preservedEnvName) envNameInput.value = preservedEnvName;
+            if (k8sVersionSelect && preservedK8sVersion) k8sVersionSelect.value = preservedK8sVersion;
+        }
+    } else {
+        // 既存のコンテナがある場合は、バージョンが変更された場合のみドロップダウンを更新
+        const k8sVersionSelect = existingContainer.querySelector('#k8s-version-main');
+        if (k8sVersionSelect && k8sVersionSelect.options.length <= 1) {
+            // オプションが1個以下（初期化状態または空）の場合のみ更新
+            populateK8sVersionDropdowns(availableK8sVersions);
+        }
+    }
 }
 
 function renderSidebarContent() {
