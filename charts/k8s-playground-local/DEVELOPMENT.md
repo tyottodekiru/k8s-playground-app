@@ -3,36 +3,15 @@
 This directory (`charts/k8s-playground-local/`) contains a Helm chart specifically designed for local development.
 While based on the [public k8s-playground-chart](https://github.com/tyottodekiru/k8s-playground-chart), it includes several critical modifications for optimal local development experience.
 
-## 🎯 Development Challenges and Solutions
-
-### Traditional Development Flow Problems
-1. **Image rebuild required** for every code change, resulting in slow development cycles
-2. **Multiple controllers** (app, generator, collector, killer, logging) difficult to develop simultaneously
-3. **NFS server setup** and user environment configuration complexity
-4. **Authentication setup** (Google OAuth) complicates local testing
-
-### Solution Strategy
-- **Binary mounting** for hot-reload development environment
-- **Lightweight containers + local builds** for fast development cycles
-- **Zero application implementation changes** constraint compliance
-- **Minimal divergence** from public chart design
-
 ## 🔧 Key Modifications
 
 ### 1. Binary Mounting (Hot Reload)
 **Modified Files**: All controller Deployment/StatefulSet templates
 
-**Background**: 
-Traditional development required a 5-10 minute cycle of code change → image build → load → deploy.
-We needed to reduce this to just Go compilation (10-30 seconds).
-
-**Implementation Rationale**:
+**Implementation**:
 - **hostPath volumes**: Share host's `/mnt/bin` directory within kind cluster
 - **Lightweight Alpine**: Provide minimal execution environment without application binaries
 - **Runtime mounting**: Use latest locally-built binaries at container startup
-
-**Constraint Compliance**:
-Adjust binary paths for environment compatibility without modifying application implementation.
 
 ```yaml
 # Example: app-controller
@@ -50,29 +29,16 @@ volumes:
 ### 2. Web Assets Mounting
 **Modified Files**: app-controller template
 
-**Background**: 
-HTML templates, CSS, JavaScript, and other frontend assets are frequently modified
-and require hot-reload capability similar to binaries.
-
-**Implementation Rationale**:
+**Implementation**:
 - **hostPath mounting**: Direct mount from `/mnt/web` to `/app/web`
-- **Template path correction**: Relative paths changed to absolute in `internal/controllers/app.go`
 
 ### 3. NFS Server Local Development Support
 **Modified Files**: `templates/nfs-server-statefulset.yaml`
 
-**Background**: 
-Application code hardcodes `/exports` paths, and full persistence functionality
-is unnecessary for development. However, application implementation cannot be modified.
-
-**Implementation Rationale**:
+**Implementation**:
 - **tmpfs usage**: Fast memory-based operation with clean state on Pod restart
 - **symlink strategy**: `/exports` → `/exports-tmpfs` for existing code compatibility
-- **lifecycle hooks**: Automatic symlink creation at Pod startup to reduce operational overhead
-
-**Technical Challenge Resolution**:
-- When NFS server uses tmpfs, existing `/exports` directory conflicts
-- `rm -rf /exports && ln -sf /exports-tmpfs /exports` provides atomic replacement
+- **lifecycle hooks**: Automatic symlink creation at Pod startup
 
 ```yaml
 # Local development additional configuration
@@ -88,25 +54,14 @@ lifecycle:
 ### 4. Authentication Method Change
 **Modified Files**: `dev/values.yaml`
 
-**Background**: 
-Google OAuth requires callback URL configuration and other setup that creates
-development barriers. Developers want to focus on feature development.
-
-**Implementation Rationale**:
-- **Switch to password auth**: Application already supports this method
-- **Fixed credentials**: `admin` / `admin123` for immediate login
-- **Security consideration**: Local development environment only
+**Implementation**:
+- **Switch to password auth**: `admin` / `admin123` for immediate login
 
 ### 5. Resource Limit Adjustments
 **Modified Files**: All controller resource configurations
 
-**Background**: 
-Developer laptop environments don't need production-level resources.
-Lightweight configuration enables coexistence with multiple development projects.
-
-**Implementation Rationale**:
+**Implementation**:
 - **Significant resource reduction**: memory 128Mi～512Mi, CPU 100m～500m
-- **Development experience priority**: Minimal resources for functional verification
 
 ```yaml
 resources:
@@ -121,27 +76,16 @@ resources:
 ### 6. Image Pull Policy
 **Modified Files**: All controllers
 
-**Background**: 
-In kind cluster environments, we want to use locally-built and loaded images
-rather than pulling latest from registries.
-
-**Implementation Rationale**:
+**Implementation**:
 - **`pullPolicy: "Never"`**: Completely disable registry access
-- **Development acceleration**: Immediate container startup without network communication
 - **Offline development**: Enables development without internet connectivity
 
 ### 7. Namespace Unification
 **Modified Files**: `dev/values.yaml`
 
-**Background**: 
-Development environments benefit from consolidating all resources in a single
-namespace for simplified management and cleanup. Public charts target
-production multi-tenant operations.
-
-**Implementation Rationale**:
+**Implementation**:
 - **`k8s-playground` namespace**: Dedicated development environment isolation
 - **Simplified resource management**: Complete cleanup with `kubectl delete namespace k8s-playground`
-- **Interference avoidance**: Separation from other development projects
 
 ## 📂 File Structure Differences
 
