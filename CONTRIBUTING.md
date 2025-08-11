@@ -80,6 +80,18 @@ docker --version  # should show Docker version
 - **macOS**: Install [Docker Desktop](https://docs.docker.com/desktop/mac/)
 - **Windows**: Install [Docker Desktop](https://docs.docker.com/desktop/windows/)
 
+### Host Configuration for Local Development
+
+For optimal local development experience, configure the following on your host system:
+
+```bash
+# Increase inotify limits for file watching
+sudo sysctl fs.inotify.max_user_watches=524288
+sudo sysctl fs.inotify.max_user_instances=512
+```
+
+**Why this is needed:** The local development environment uses file watching to detect code changes and trigger hot reloads. The default inotify limits on many Linux systems are too low for effective development with large codebases.
+
 ### Docker Permissions Setup
 
 To use Docker as a non-root user, run the following commands:
