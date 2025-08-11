@@ -1,0 +1,18 @@
+{{- if .Values.controlPlane.infrastructure.redis.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "k8s-playground.fullname" . }}-redis-pvc
+  labels:
+    {{- include "k8s-playground.labels" . | nindent 4 }}
+    component: redis
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.controlPlane.infrastructure.redis.persistence.size }}
+  {{- if .Values.controlPlane.infrastructure.redis.persistence.storageClass }}
+  storageClassName: {{ .Values.controlPlane.infrastructure.redis.persistence.storageClass }}
+  {{- end }}
+{{- end }}

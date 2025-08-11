@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "k8s-playground.fullname" . }}-logging-controller
+  labels:
+    {{- include "k8s-playground.labels" . | nindent 4 }}
+    app.kubernetes.io/component: logging-controller
+spec:
+  serviceName: {{ include "k8s-playground.fullname" . }}-logging-controller-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "k8s-playground.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: logging-controller
+  template:
+    metadata:
+      labels:
+        {{- include "k8s-playground.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: logging-controller
+    spec:
+      serviceAccountName: {{ include "k8s-playground.serviceAccountName" . }}
+      containers:
+      - name: logging-controller
+        image: "{{ .Values.controlPlane.controllers.backend.logging.repository }}:{{ .Values.controlPlane.controllers.defaults.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.controlPlane.controllers.defaults.image.pullPolicy }}
+        {{- if .Values.controlPlane.controllers.backend.logging.command }}
+        command: {{ .Values.controlPlane.controllers.backend.logging.command | toJson }}
+        {{- end }}
+        {{- if .Values.controlPlane.controllers.backend.logging.volumeMounts }}
+        volumeMounts:
+          {{- toYaml .Values.controlPlane.controllers.backend.logging.volumeMounts | nindent 10 }}
+        {{- end }}
+        env:
+          - name: LOG_DIR
+            value: "/var/log/k8s-playground"
+          - name: REDIS_URL
+            value: "redis://{{ include "k8s-playground.fullname" . }}-redis:6379"
+          - name: API_PORT
+            value: "8081"
+          - name: ADMIN_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "k8s-playground.fullname" . }}-logging-admin
+                key: token
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+        ports:
+          - containerPort: 8081
+            name: admin-api
+        volumeMounts:
+          - name: logging-data
+            mountPath: /var/log/k8s-playground
+          {{- if .Values.controlPlane.controllers.backend.logging.volumeMounts }}
+          {{- toYaml .Values.controlPlane.controllers.backend.logging.volumeMounts | nindent 10 }}
+          {{- end }}
+        resources:
+          {{- toYaml .Values.controlPlane.controllers.defaults.resources | nindent 10 }}
+      {{- if .Values.controlPlane.controllers.backend.logging.volumes }}
+      volumes:
+        {{- toYaml .Values.controlPlane.controllers.backend.logging.volumes | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.scheduling.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.scheduling.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.scheduling.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  volumeClaimTemplates:
+  - metadata:
+      name: logging-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      {{- if .Values.controlPlane.controllers.backend.logging.persistence.storageClass }}
+      storageClassName: {{ .Values.controlPlane.controllers.backend.logging.persistence.storageClass }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.controlPlane.controllers.backend.logging.persistence.size | default "10Gi" }}

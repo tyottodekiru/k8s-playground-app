@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "k8s-playground.fullname" . }}-killer-controller
+  labels:
+    {{- include "k8s-playground.labels" . | nindent 4 }}
+    component: killer-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "k8s-playground.selectorLabels" . | nindent 6 }}
+      component: killer-controller
+  template:
+    metadata:
+      labels:
+        {{- include "k8s-playground.selectorLabels" . | nindent 8 }}
+        component: killer-controller
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "k8s-playground.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.deployment.security.podSecurityContext | nindent 8 }}
+      containers:
+        - name: killer-controller
+          securityContext:
+            {{- toYaml .Values.deployment.security.securityContext | nindent 12 }}
+          image: "{{ .Values.controlPlane.controllers.backend.killer.repository }}:{{ .Values.controlPlane.controllers.defaults.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.controlPlane.controllers.defaults.image.pullPolicy }}
+          {{- if .Values.controlPlane.controllers.backend.killer.command }}
+          command: {{ .Values.controlPlane.controllers.backend.killer.command | toJson }}
+          {{- end }}
+          {{- if .Values.controlPlane.controllers.backend.killer.volumeMounts }}
+          volumeMounts:
+            {{- toYaml .Values.controlPlane.controllers.backend.killer.volumeMounts | nindent 12 }}
+          {{- end }}
+          env:
+            - name: REDIS_URL
+              value: {{ if .Values.controlPlane.infrastructure.redis.external.url }}{{ .Values.controlPlane.infrastructure.redis.external.url | quote }}{{ else }}"redis://{{ include "k8s-playground.fullname" . }}-redis:{{ .Values.controlPlane.infrastructure.redis.external.port }}"{{ end }}
+            - name: NAMESPACE
+              value: {{ .Values.playground.namespace | quote }}
+          resources:
+            {{- toYaml .Values.controlPlane.controllers.backend.killer.resources | nindent 12 }}
+      {{- if .Values.controlPlane.controllers.backend.killer.volumes }}
+      volumes:
+        {{- toYaml .Values.controlPlane.controllers.backend.killer.volumes | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.scheduling.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.scheduling.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.scheduling.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

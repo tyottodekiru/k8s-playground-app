@@ -1,0 +1,174 @@
+# =============================================================================
+# k8s-playground Local Development Values
+# Based on public k8s-playground-chart
+# =============================================================================
+
+# === GLOBAL SETTINGS ===
+global:
+  nameOverride: ""
+  imagePullSecrets: []
+  baseURL: "http://localhost:8080"
+
+# === CHART OVERRIDES ===
+nameOverride: ""
+fullnameOverride: "k8s-playground"  # Match expected service names in app
+
+# === USER PLAYGROUND ===
+playground:
+  namespace: "k8s-playground"  # Use dedicated namespace for local dev
+  workload:
+    type: "statefulset"
+    persistence:
+      size: "1Gi"  # Smaller for local dev
+  dindImages:
+    repository: "tyottodekiru/dind"
+    versions:
+      "1.33": "k8s-1.33.0"
+      "1.32": "k8s-1.32.1"
+      "1.31": "k8s-1.31.2"
+      "1.30": "k8s-1.30.2"
+
+# === CONTROL PLANE ===
+controlPlane:
+  # Authentication
+  authentication:
+    method: "password"  # Use password for local dev
+    secretName: "k8s-playground-auth"
+    
+  # Controllers - use local development images
+  controllers:
+    # Shared defaults for local development
+    defaults:
+      image:
+        tag: "latest"
+        pullPolicy: "Never"  # Use local images only
+      resources:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "512Mi"
+          cpu: "500m"
+          
+    # Web application (user-facing) - matches public chart structure
+    app:
+      image:
+        repository: "alpine"
+      replicas: 1
+      command: ["/mnt/bin/app-controller"]
+      service:
+        type: NodePort
+        port: 8080
+        nodePort: 30080
+      env:
+        PORT: "8080"
+        AUTH_METHOD: "password"
+        SESSION_KEY: "dev-session-key-12345"
+        ADMIN_PASSWORD: "admin123"
+        DIND_IMAGE_VERSIONS_JSON: '{"1.30":"k8s-1.30.2","1.31":"k8s-1.31.2","1.32":"k8s-1.32.1","1.33":"k8s-1.33.0"}'
+      volumeMounts:
+        - name: binary-volume
+          mountPath: /mnt/bin
+        - name: web-assets
+          mountPath: /app/web
+      volumes:
+        - name: binary-volume
+          hostPath:
+            path: /mnt/bin
+            type: Directory
+        - name: web-assets
+          hostPath:
+            path: /mnt/web
+            type: Directory
+            
+    # Backend services (inherit defaults) - matches public chart structure
+    backend:
+      generator:
+        repository: "alpine"
+        command: ["/mnt/bin/generator-controller"]
+        env:
+          DIND_IMAGE_VERSIONS_JSON: '{"1.30":"k8s-1.30.2","1.31":"k8s-1.31.2","1.32":"k8s-1.32.1","1.33":"k8s-1.33.0"}'
+        volumeMounts:
+          - name: binary-volume
+            mountPath: /mnt/bin
+        volumes:
+          - name: binary-volume
+            hostPath:
+              path: /mnt/bin
+              type: Directory
+              
+      collector:
+        repository: "alpine"
+        command: ["/mnt/bin/collector-controller"]
+        volumeMounts:
+          - name: binary-volume
+            mountPath: /mnt/bin
+        volumes:
+          - name: binary-volume
+            hostPath:
+              path: /mnt/bin
+              type: Directory
+              
+      killer:
+        repository: "alpine"
+        command: ["/mnt/bin/killer-controller"]
+        volumeMounts:
+          - name: binary-volume
+            mountPath: /mnt/bin
+        volumes:
+          - name: binary-volume
+            hostPath:
+              path: /mnt/bin
+              type: Directory
+              
+      logging:
+        repository: "alpine"
+        command: ["/mnt/bin/logging-controller"]
+        volumeMounts:
+          - name: binary-volume
+            mountPath: /mnt/bin
+        volumes:
+          - name: binary-volume
+            hostPath:
+              path: /mnt/bin
+              type: Directory
+
+  # Infrastructure - matches public chart structure
+  infrastructure:
+    redis:
+      image: {repository: redis, tag: "7-alpine"}
+      resources:
+        limits: {cpu: 100m, memory: 128Mi}
+        requests: {cpu: 50m, memory: 64Mi}
+      persistence: {enabled: false}  # Disable for local dev
+    nfs:
+      enabled: true
+      image: {repository: tyottodekiru/nfs-server-ubuntu, tag: latest, pullPolicy: IfNotPresent}
+      persistence: {enabled: false}  # Disable for local dev
+      local:
+        enabled: true  # Enable local development mode
+        tmpfs: true    # Use tmpfs for local development
+
+# === DEPLOYMENT SETTINGS ===
+deployment:
+  # Service Account
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+    
+  # Service Account
+  security:
+    serviceAccount:
+      create: true
+      annotations: {}
+      name: ""
+
+  # Networking - use ClusterIP with port-forward
+  networking:
+    ingress:
+      enabled: false
+    service:
+      type: ClusterIP
+      port: 80
+      targetPort: 8080

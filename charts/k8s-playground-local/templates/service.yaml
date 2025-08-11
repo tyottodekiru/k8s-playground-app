@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "k8s-playground.fullname" . }}-app-controller
+  labels:
+    {{- include "k8s-playground.labels" . | nindent 4 }}
+    component: app-controller
+spec:
+  type: {{ .Values.deployment.networking.service.type }}
+  ports:
+    - port: {{ .Values.deployment.networking.service.port }}
+      targetPort: {{ .Values.deployment.networking.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "k8s-playground.selectorLabels" . | nindent 4 }}
+    component: app-controller

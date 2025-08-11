@@ -1,0 +1,157 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "k8s-playground.fullname" . }}-app-controller
+  labels:
+    {{- include "k8s-playground.labels" . | nindent 4 }}
+    component: app-controller
+spec:
+  replicas: {{ .Values.controlPlane.controllers.app.replicas }}
+  selector:
+    matchLabels:
+      {{- include "k8s-playground.selectorLabels" . | nindent 6 }}
+      component: app-controller
+  template:
+    metadata:
+      labels:
+        {{- include "k8s-playground.selectorLabels" . | nindent 8 }}
+        component: app-controller
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "k8s-playground.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.deployment.security.podSecurityContext | nindent 8 }}
+      containers:
+        - name: app-controller
+          securityContext:
+            {{- toYaml .Values.deployment.security.securityContext | nindent 12 }}
+          image: "{{ .Values.controlPlane.controllers.app.image.repository }}:{{ .Values.controlPlane.controllers.defaults.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.controlPlane.controllers.defaults.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          {{- if .Values.controlPlane.controllers.app.command }}
+          command: {{ .Values.controlPlane.controllers.app.command | toJson }}
+          {{- end }}
+          {{- if .Values.controlPlane.controllers.app.volumeMounts }}
+          volumeMounts:
+            {{- toYaml .Values.controlPlane.controllers.app.volumeMounts | nindent 12 }}
+          {{- end }}
+          env:
+            - name: REDIS_URL
+              value: {{ if .Values.controlPlane.infrastructure.redis.external.url }}{{ .Values.controlPlane.infrastructure.redis.external.url | quote }}{{ else }}"redis://{{ include "k8s-playground.fullname" . }}-redis:{{ .Values.controlPlane.infrastructure.redis.external.port }}"{{ end }}
+            - name: PORT
+              value: "8080"
+            - name: BASE_URL
+              value: {{ .Values.global.baseURL | quote }}
+            - name: GIN_MODE
+              value: {{ .Values.ginMode | default "release" | quote }}
+            - name: NAMESPACE
+              value: {{ .Values.playground.namespace | quote }}
+
+            - name: AUTH_METHOD
+              value: {{ .Values.controlPlane.authentication.method | quote }}
+
+            {{- if not .Values.controlPlane.authentication.secretName }}
+            {{- fail "auth.secretName is required for secure deployment. Please specify the name of a Kubernetes Secret containing authentication data." }}
+            {{- end }}
+            - name: SESSION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.controlPlane.authentication.secretName | quote }}
+                  key: sessionKey
+
+            {{- if eq .Values.controlPlane.authentication.method "google" }}
+            - name: GOOGLE_CLIENT_ID
+              value: {{ .Values.controlPlane.authentication.google.clientId | quote }}
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.controlPlane.authentication.secretName | quote }}
+                  key: clientSecret
+            {{- if .Values.controlPlane.authentication.google.allowedDomains }}
+            - name: GOOGLE_ALLOWED_DOMAINS
+              value: {{ .Values.controlPlane.authentication.google.allowedDomains | join "," | quote }}
+            {{- end }}
+            {{- end }}
+
+            {{- if eq .Values.controlPlane.authentication.method "password" }}
+            - name: AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.controlPlane.authentication.secretName | quote }}
+                  key: adminPassword
+            {{- end }}
+            
+            {{- if .Values.controlPlane.authentication.google.adminUsers }}
+            - name: ADMIN_USERS
+              value: {{ .Values.controlPlane.authentication.google.adminUsers | join "," | quote }}
+            {{- end }}
+            
+            {{- if .Values.controlPlane.authentication.google.groupBasedAdminDetection.enabled }}
+            - name: GROUP_ADMIN_DETECTION_ENABLED
+              value: "true"
+            {{- if .Values.controlPlane.authentication.google.groupBasedAdminDetection.adminGroups }}
+            - name: ADMIN_GROUPS
+              value: {{ .Values.controlPlane.authentication.google.groupBasedAdminDetection.adminGroups | join "," | quote }}
+            {{- end }}
+            {{- if .Values.controlPlane.authentication.google.groupBasedAdminDetection.emailPatterns }}
+            - name: ADMIN_EMAIL_PATTERNS
+              value: {{ .Values.controlPlane.authentication.google.groupBasedAdminDetection.emailPatterns | join "," | quote }}
+            {{- end }}
+            {{- end }}
+
+            # DinD image versions configuration
+            - name: DIND_IMAGE_VERSIONS_JSON
+              value: {{ .Values.playground.dindImages.versions | toJson | quote }}
+            # Default workload type configuration
+            - name: DIND_WORKLOAD_TYPE
+              value: {{ .Values.playground.workload.type | quote }}
+            
+            # Logging controller API configuration
+            - name: LOGGING_CONTROLLER_API_URL
+              value: "http://{{ include "k8s-playground.fullname" . }}-logging-controller:8081"
+            - name: LOGGING_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "k8s-playground.fullname" . }}-logging-admin
+                  key: token
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.controlPlane.controllers.app.resources | nindent 12 }}
+      {{- if .Values.controlPlane.controllers.app.volumes }}
+      volumes:
+        {{- toYaml .Values.controlPlane.controllers.app.volumes | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.scheduling.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.scheduling.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.scheduling.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

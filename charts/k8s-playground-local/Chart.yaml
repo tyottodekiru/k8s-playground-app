@@ -1,0 +1,17 @@
+apiVersion: v2
+name: k8s-playground
+description: A Helm chart for k8s Playground application
+type: application
+version: 0.1.4
+appVersion: "v0.1.4"
+keywords:
+  - kubernetes
+  - playground
+  - dind
+  - development
+home: https://github.com/tyottodekiru/k8s-playground
+sources:
+  - https://github.com/tyottodekiru/k8s-playground
+maintainers:
+  - name: k8s-playground
+    email: gtpgx305@gmail.com

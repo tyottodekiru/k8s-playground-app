@@ -275,8 +275,8 @@ func NewAppController(
 }
 
 func (a *AppController) SetupRoutes(router *gin.Engine) {
-	router.Static("/static", "./web/static")
-	router.LoadHTMLGlob("web/templates/*")
+	router.Static("/static", "/app/web/static")
+	router.LoadHTMLGlob("/app/web/templates/*")
 
 	router.GET("/", a.loginPage)
 	router.GET("/logout", a.handleLogout)

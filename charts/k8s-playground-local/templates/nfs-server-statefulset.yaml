@@ -1,0 +1,109 @@
+{{- if .Values.controlPlane.infrastructure.nfs.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "k8s-playground.fullname" . }}-nfs-server
+  labels:
+    {{- include "k8s-playground.labels" . | nindent 4 }}
+    component: nfs-server
+spec:
+  serviceName: {{ include "k8s-playground.fullname" . }}-nfs-server
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "k8s-playground.selectorLabels" . | nindent 6 }}
+      component: nfs-server
+  template:
+    metadata:
+      labels:
+        {{- include "k8s-playground.selectorLabels" . | nindent 8 }}
+        component: nfs-server
+    spec:
+      {{- if and .Values.controlPlane.infrastructure.nfs.local.enabled .Values.controlPlane.infrastructure.nfs.local.tmpfs }}
+      # Local development: add tmpfs volume for NFS compatibility
+      volumes:
+      - name: nfs-tmpfs
+        emptyDir:
+          medium: Memory
+          sizeLimit: 1Gi
+      {{- end }}
+      containers:
+      - name: nfs-server
+        image: "{{ .Values.controlPlane.infrastructure.nfs.image.repository }}:{{ .Values.controlPlane.infrastructure.nfs.image.tag }}"
+        imagePullPolicy: {{ .Values.controlPlane.infrastructure.nfs.image.pullPolicy }}
+        ports:
+        - name: nfs
+          containerPort: 2049
+          protocol: TCP
+        - name: rpcbind-tcp
+          containerPort: 111
+          protocol: TCP
+        - name: rpcbind-udp
+          containerPort: 111
+          protocol: UDP
+        - name: mountd-tcp
+          containerPort: 32767
+          protocol: TCP
+        - name: mountd-udp
+          containerPort: 32767
+          protocol: UDP
+        - name: lockd-tcp
+          containerPort: 32768
+          protocol: TCP
+        - name: lockd-udp
+          containerPort: 32768
+          protocol: UDP
+        - name: statd-tcp
+          containerPort: 32765
+          protocol: TCP
+        - name: statd-udp
+          containerPort: 32765
+          protocol: UDP
+        securityContext:
+          privileged: true
+        env:
+        - name: SHARED_DIRECTORY
+          {{- if and .Values.controlPlane.infrastructure.nfs.local.enabled .Values.controlPlane.infrastructure.nfs.local.tmpfs }}
+          value: "/exports-tmpfs"
+          {{- else }}
+          value: "/exports"
+          {{- end }}
+        {{- if and .Values.controlPlane.infrastructure.nfs.local.enabled .Values.controlPlane.infrastructure.nfs.local.tmpfs }}
+        # Create symlink for compatibility with hardcoded /exports path in application
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh", "-c", "rm -rf /exports && ln -sf /exports-tmpfs /exports || true"]
+        {{- end }}
+        volumeMounts:
+        {{- if .Values.controlPlane.infrastructure.nfs.persistence.enabled }}
+        - name: nfs-storage
+          mountPath: /exports
+        {{- end }}
+        {{- if and .Values.controlPlane.infrastructure.nfs.local.enabled .Values.controlPlane.infrastructure.nfs.local.tmpfs }}
+        # Local development: mount tmpfs for NFS compatibility  
+        - name: nfs-tmpfs
+          mountPath: /exports-tmpfs
+        {{- end }}
+        startupProbe:
+          exec:
+            # Check if NFS is ready by verifying mountd is running
+            command: ["/bin/sh", "-c", "rpcinfo -p | grep -q mountd"]
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 24
+          timeoutSeconds: 3
+  {{- if .Values.controlPlane.infrastructure.nfs.persistence.enabled }}
+  volumeClaimTemplates:
+  - metadata:
+      name: nfs-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      {{- if .Values.controlPlane.infrastructure.nfs.persistence.storageClass }}
+      storageClassName: {{ .Values.controlPlane.infrastructure.nfs.persistence.storageClass }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.controlPlane.infrastructure.nfs.persistence.size }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,134 @@
+# =============================================================================
+# k8s-playground Helm Chart Values
+# =============================================================================
+# Refined configuration with minimal redundancy and clear hierarchy.
+# 
+# Structure:
+# - global: Common settings affecting all components
+# - playground: User workload configuration  
+# - controlPlane: k8s-playground system components
+# - deployment: Infrastructure and networking
+# =============================================================================
+
+# === GLOBAL SETTINGS ===
+global:
+  nameOverride: ""
+  fullnameOverride: ""
+  imagePullSecrets: []
+  baseURL: "https://example.com"
+# === USER PLAYGROUND ===
+playground:
+  namespace: "default"
+  workload:
+    type: "deployment" # deployment | statefulset 
+    persistence:
+      size: "10Gi"
+  dindImages:
+    repository: "tyottodekiru/dind"
+    versions:
+      "1.33": "k8s-1.33.0"
+      "1.32": "k8s-1.32.1"
+      "1.31": "k8s-1.31.2"
+      "1.30": "k8s-1.30.2"
+# === CONTROL PLANE ===
+controlPlane:
+  # Authentication
+  authentication:
+    method: "google" # google | password
+    secretName: "k8s-playground-auth"
+    google:
+      clientId: ""
+      allowedDomains: [""]
+      adminUsers: [""]
+      groupBasedAdminDetection:
+        enabled: false
+        adminGroups: []
+        emailPatterns: []
+  # Controllers
+  controllers:
+    # Shared defaults
+    defaults:
+      image:
+        tag: "v0.1.4"
+        pullPolicy: IfNotPresent
+      resources:
+        limits: {cpu: 200m, memory: 256Mi}
+        requests: {cpu: 50m, memory: 64Mi}
+      autoscaling:
+        enabled: false
+        minReplicas: 1
+        maxReplicas: 1
+        targetCPUUtilizationPercentage: 80
+    # Web application (user-facing)
+    app:
+      replicas: 1
+      image:
+        repository: tyottodekiru/app-controller
+      resources:
+        limits: {cpu: 500m, memory: 512Mi}
+        requests: {cpu: 100m, memory: 128Mi}
+      autoscaling:
+        maxReplicas: 2
+    # Backend services (inherit defaults)
+    backend:
+      generator:
+        repository: tyottodekiru/generator-controller
+      collector:
+        repository: tyottodekiru/collector-controller
+        resources:
+          limits: {cpu: 100m, memory: 128Mi}
+          requests: {cpu: 25m, memory: 32Mi}
+      killer:
+        repository: tyottodekiru/killer-controller
+        resources:
+          limits: {cpu: 100m, memory: 128Mi}
+          requests: {cpu: 25m, memory: 32Mi}
+      logging:
+        repository: tyottodekiru/logging-controller
+        persistence:
+          size: 10Gi
+          storageClass: ""
+  # Infrastructure
+  infrastructure:
+    redis:
+      image: {repository: redis, tag: "7-alpine"}
+      external: {host: "", port: 6379, url: ""}
+      persistence: {enabled: true, size: 8Gi, storageClass: ""}
+      resources:
+        limits: {cpu: 100m, memory: 128Mi}
+        requests: {cpu: 50m, memory: 64Mi}
+    nfs:
+      enabled: true
+      image: {repository: tyottodekiru/nfs-server-ubuntu, tag: latest, pullPolicy: IfNotPresent}
+      persistence: {enabled: true, size: 5Gi, storageClass: ""}
+# === DEPLOYMENT ===
+deployment:
+  # Networking
+  networking:
+    service:
+      type: ClusterIP
+      port: 80
+      targetPort: 8080
+    ingress:
+      enabled: true
+      className: "nginx"
+      annotations:
+        cert-manager.io/cluster-issuer: selfsigned-cluster-issuer
+        nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      hosts:
+        - host: k8s-playground.com
+          paths: [{path: "/", pathType: Prefix}]
+      tls: []
+  # Scheduling (applies to control plane only)
+  scheduling:
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+  # Security
+  security:
+    serviceAccount:
+      create: true
+      annotations: {}
+      name: ""
+    podSecurityContext: {}
+    securityContext: {}

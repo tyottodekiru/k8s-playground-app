@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "k8s-playground.fullname" . }}-generator-controller
+  labels:
+    {{- include "k8s-playground.labels" . | nindent 4 }}
+    component: generator-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "k8s-playground.selectorLabels" . | nindent 6 }}
+      component: generator-controller
+  template:
+    metadata:
+      labels:
+        {{- include "k8s-playground.selectorLabels" . | nindent 8 }}
+        component: generator-controller
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "k8s-playground.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.deployment.security.podSecurityContext | nindent 8 }}
+      containers:
+        - name: generator-controller
+          securityContext:
+            {{- toYaml .Values.deployment.security.securityContext | nindent 12 }}
+          image: "{{ .Values.controlPlane.controllers.backend.generator.repository }}:{{ .Values.controlPlane.controllers.defaults.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.controlPlane.controllers.defaults.image.pullPolicy }}
+          {{- if .Values.controlPlane.controllers.backend.generator.command }}
+          command: {{ .Values.controlPlane.controllers.backend.generator.command | toJson }}
+          {{- end }}
+          {{- if .Values.controlPlane.controllers.backend.generator.volumeMounts }}
+          volumeMounts:
+            {{- toYaml .Values.controlPlane.controllers.backend.generator.volumeMounts | nindent 12 }}
+          {{- end }}
+          env:
+            - name: REDIS_URL
+              value: {{ if .Values.controlPlane.infrastructure.redis.external.url }}{{ .Values.controlPlane.infrastructure.redis.external.url | quote }}{{ else }}"redis://{{ include "k8s-playground.fullname" . }}-redis:{{ .Values.controlPlane.infrastructure.redis.external.port }}"{{ end }}
+            - name: NAMESPACE
+              value: {{ .Values.playground.namespace | quote }}
+            - name: DIND_WORKLOAD_TYPE
+              value: {{ .Values.playground.workload.type | quote }}
+            - name: DIND_PVC_SIZE
+              value: {{ .Values.playground.workload.persistence.size | quote }}
+            - name: DIND_IMAGE_REPOSITORY
+              value: {{ .Values.playground.dindImages.repository | quote }}
+            - name: DIND_IMAGE_VERSIONS_JSON
+              value: {{ .Values.playground.dindImages.versions | toJson | quote }}
+          resources:
+            {{- toYaml .Values.controlPlane.controllers.defaults.resources | nindent 12 }}
+      {{- if .Values.controlPlane.controllers.backend.generator.volumes }}
+      volumes:
+        {{- toYaml .Values.controlPlane.controllers.backend.generator.volumes | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.scheduling.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.scheduling.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.scheduling.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

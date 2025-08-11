@@ -1,0 +1,19 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+  extraPortMappings:
+  - containerPort: 30080
+    hostPort: 8080
+    protocol: TCP
+  extraMounts:
+  - hostPath: /home/kansei/Desktop/k8s-playground-app/bin
+    containerPath: /mnt/bin
+  - hostPath: /home/kansei/Desktop/k8s-playground-app/web
+    containerPath: /mnt/web
+  kubeadmConfigPatches:
+  - |
+    kind: ClusterConfiguration
+    apiServer:
+      extraArgs:
+        allow-privileged: "true"

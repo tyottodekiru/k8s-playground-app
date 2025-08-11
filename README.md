@@ -155,13 +155,14 @@ The admin panel allows you to:
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](docs/contributing.md) for details.
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on setting up the local development environment.
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+2. Set up local development environment (see CONTRIBUTING.md)
+3. Create a feature branch
+4. Make your changes
+5. Add tests if applicable
+6. Submit a pull request
 
 ## 📄 License
 

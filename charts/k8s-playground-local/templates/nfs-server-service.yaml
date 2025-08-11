@@ -1,0 +1,50 @@
+{{- if .Values.controlPlane.infrastructure.nfs.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "k8s-playground.fullname" . }}-nfs-server
+  labels:
+    {{- include "k8s-playground.labels" . | nindent 4 }}
+    component: nfs-server
+spec:
+  ports:
+  - name: nfs
+    port: 2049
+    protocol: TCP
+    targetPort: 2049
+  - name: rpcbind-tcp
+    port: 111
+    protocol: TCP
+    targetPort: 111
+  - name: rpcbind-udp
+    port: 111
+    protocol: UDP
+    targetPort: 111
+  - name: mountd-tcp
+    port: 32767
+    protocol: TCP
+    targetPort: 32767
+  - name: mountd-udp
+    port: 32767
+    protocol: UDP
+    targetPort: 32767
+  - name: lockd-tcp
+    port: 32768
+    protocol: TCP
+    targetPort: 32768
+  - name: lockd-udp
+    port: 32768
+    protocol: UDP
+    targetPort: 32768
+  - name: statd-tcp
+    port: 32765
+    protocol: TCP
+    targetPort: 32765
+  - name: statd-udp
+    port: 32765
+    protocol: UDP
+    targetPort: 32765
+  selector:
+    {{- include "k8s-playground.selectorLabels" . | nindent 4 }}
+    component: nfs-server
+{{- end }}
